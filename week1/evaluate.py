@@ -34,8 +34,14 @@ def run_and_capture(cmd: list[str], stdout_path: Path) -> tuple[str, str, float]
         stderr_path.write_text(p.stderr)
 
     if p.returncode != 0:
-        raise RuntimeError(f"command failed: {' '.join(cmd)}\n{p.stderr[:500]}")
+        # Print stderr to CI logs
+        print(f"Command failed: {' '.join(cmd)}")
+        print("----- stderr (first 50 lines) -----")
+        print("\n".join(p.stderr.splitlines()[:50]))
+        print("----- end stderr -----")
+        raise RuntimeError(f"command failed: {' '.join(cmd)}")
     return p.stdout, p.stderr, elapsed
+
 
 # ----- Parse "index length" lines -----
 def extract_lengths(text: str) -> list[int]:
@@ -79,10 +85,12 @@ def main(argv: list[str]) -> int:
             print(f"{ds}\tpython\t\t{fmt_hms(py_elapsed)}\t{py_n50}")
         except Exception as e:
             print(f"{ds}\tpython\t\tERROR\t0")
+            print(f"(python error: {e})")
             err_path = py_out.with_suffix(py_out.suffix + ".stderr.txt")
             if err_path.exists():
-                print(f"(python stderr → {err_path})")
-            continue  # important: don't touch py_stdout if the run failed
+                print(f"(python stderr saved to {err_path})")
+            continue
+
 
         # -------- Codon run (optional) --------
         if CODON_MAIN.exists() and shutil.which("codon"):
@@ -94,11 +102,13 @@ def main(argv: list[str]) -> int:
                 cd_n50 = n50(cd_lengths)
                 print(f"{ds}\tcodon\t\t{fmt_hms(cd_elapsed)}\t{cd_n50}")
             except Exception as e:
-                print(f"{ds}\tcodon\t\tERROR\t0")
-                err_path = cd_out.with_suffix(cd_out.suffix + ".stderr.txt")
+                print(f"{ds}\tpython\t\tERROR\t0")
+                print(f"(python error: {e})")
+                err_path = py_out.with_suffix(py_out.suffix + ".stderr.txt")
                 if err_path.exists():
-                    print(f"(codon stderr → {err_path})")
+                    print(f"(python stderr saved to {err_path})")
                 continue
+
 
     return 0
 
