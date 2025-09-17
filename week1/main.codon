@@ -1,0 +1,135 @@
+import sys
+from typing import Dict, List
+
+# ---- FASTA ----
+def read_fasta(path: str) -> List[str]:
+    seqs: List[str] = []
+    cur: List[str] = []
+    try:
+        fh = open(path)
+    except:
+        return seqs
+    for line in fh:
+        line = line.strip()
+        if not line:
+            continue
+        if line[0] == '>':
+            if cur:
+                seqs.append("".join(cur).upper())
+                cur = []
+        else:
+            cur.append(line)
+    fh.close()
+    if cur:
+        seqs.append("".join(cur).upper())
+    return seqs
+
+def join2(a: str, b: str) -> str:
+    if a.endswith("/"):
+        return a + b
+    else:
+        return a + "/" + b
+
+def read_all_fastas(dirpath: str) -> List[str]:
+    seqs: List[str] = []
+    for name in ["short_1.fasta", "short_2.fasta", "long.fasta"]:
+        seqs.extend(read_fasta(join2(dirpath, name)))
+    return seqs
+
+# ---- DNA helpers ----
+_RC: Dict[str, str] = {"A": "T", "C": "G", "G": "C", "T": "A", "N": "N"}
+
+def revcomp(s: str) -> str:
+    out: List[str] = []
+    for ch in reversed(s):
+        out.append(_RC.get(ch, "N"))
+    return "".join(out)
+
+# ---- Simplified De Bruijn Graph ----
+class DBG:
+    def __init__(self, k: int):
+        self.k: int = k
+        self.child: Dict[str, str] = {}   # each node → ONE child
+        self.parent: Dict[str, str] = {}  # each node → ONE parent
+        self.used: Dict[str, bool] = {}
+
+    def add_edge(self, a: str, b: str):
+        # keep only one child/parent link (last one wins)
+        self.child[a] = b
+        self.parent[b] = a
+        self.used[a] = False
+        self.used[b] = False
+
+    def build(self, reads: List[str]):
+        k = self.k
+        for r in reads:
+            if len(r) < k + 1:
+                continue
+            for s in (r, revcomp(r)):
+                for i in range(len(s) - k):
+                    a = s[i:i+k]
+                    b = s[i+1:i+1+k]
+                    self.add_edge(a, b)
+
+    def longest_path(self) -> List[str]:
+        best: List[str] = []
+        for v in list(self.child.keys()):
+            if self.used.get(v, False):
+                continue
+            path: List[str] = []
+            cur = v
+            while cur in self.child and not self.used.get(cur, False):
+                path.append(cur)
+                self.used[cur] = True
+                cur = self.child[cur]
+            if cur and not self.used.get(cur, False):
+                path.append(cur)
+                self.used[cur] = True
+            if len(path) > len(best):
+                best = path
+        return best
+
+    def path_to_contig(self, path: List[str]) -> str:
+        if not path:
+            return ""
+        contig = path[0]
+        for s in path[1:]:
+            contig += s[-1]
+        return contig
+
+    def longest_contig(self) -> str:
+        path = self.longest_path()
+        if not path:
+            return ""
+        return self.path_to_contig(path)
+
+# ---- MAIN ----
+def main():
+    if len(sys.argv) != 2:
+        print("Usage: main.codon <dataset_dir>")
+        sys.exit(2)
+
+    dataset = sys.argv[1]
+    reads = read_all_fastas(dataset)
+    dbg = DBG(25)
+    dbg.build(reads)
+
+    print("nodes:", len(dbg.child), "edges:", len(dbg.child))
+
+    out_path = join2(dataset, "contig.fasta")
+    fw = open(out_path, "w")
+
+    i = 0
+    while i < 20:
+        contig = dbg.longest_contig()
+        if not contig:
+            break
+        print(i, len(contig))
+        fw.write(f">contig_{i}\n")
+        fw.write(contig + "\n")
+        i += 1
+
+    fw.close()
+
+if __name__ == "__main__":
+    main()
