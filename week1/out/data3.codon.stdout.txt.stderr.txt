@@ -1,0 +1,4 @@
+[1mmain.codon:161 (17-35): [1;31merror:[0m[1m 'DBG[Dict[str,Set[str]],Dict[str,Optional[str]],Dict[str,int],Dict[str,int],int,Dict[str,Set[str]],Dict[str,int]]' object has no attribute '_get_depth'[0m
+├─ [1mmain.codon:213 (16-39): [1;31merror:[0m[1m during the realization of get_longest_path(self: DBG[Dict[str,Set[str]],Dict[str,Optional[str]],Dict[str,int],Dict[str,int],int,Dict[str,Set[str]],Dict[str,int]])[0m
+├─ [1mmain.codon:237 (18-38): [1;31merror:[0m[1m during the realization of longest_contig(self: DBG[Dict[str,Set[str]],Dict[str,Optional[str]],Dict[str,int],Dict[str,int],int,Dict[str,Set[str]],Dict[str,int]])[0m
+╰─ [1mmain.codon:250 (5-9): [1;31merror:[0m[1m during the realization of main()[0m
