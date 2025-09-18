@@ -45,4 +45,3 @@ jobs:
 
       - name: 🖥️ Run evaluation
         run: python week1/evaluate.py
-
